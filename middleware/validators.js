@@ -32,11 +32,6 @@ exports.validateForgotPassword = [
   validate,
 ];
 
-exports.validatePreregistration = [
-  body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
-  validate,
-];
-
 exports.validateResetPassword = [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   validate,
@@ -72,7 +67,24 @@ exports.validateKanji = [
 exports.validateGrammar = [
   body('level').isIn(['N5','N4','N3','N2','N1']).withMessage('Valid level required'),
   body('title').trim().notEmpty().withMessage('Grammar title is required'),
+  body('chapter').optional().trim(),
+  body('order').optional().isInt({ min: 1 }).withMessage('Lesson order must be a positive number'),
+  body('structure').optional().trim(),
   body('explanation').trim().notEmpty().withMessage('Explanation is required'),
+  body('objective').optional().trim(),
+  body('example').optional().trim(),
+  body('exampleEn').optional().trim(),
+  body('sentences').optional().isArray().withMessage('Sentences must be an array'),
+  body('sentences.*.japanese').optional().trim(),
+  body('sentences.*.english').optional().trim(),
+  body('sentences.*.note').optional().trim(),
+  body('exercises').optional().isArray().withMessage('Exercises must be an array'),
+  body('exercises.*.type').optional().isIn(['choice','type']).withMessage('Exercise type must be choice or type'),
+  body('exercises.*.prompt').optional().trim(),
+  body('exercises.*.sentence').optional().trim(),
+  body('exercises.*.answer').optional().trim(),
+  body('exercises.*.choices').optional().isArray().withMessage('Choices must be an array'),
+  body('exercises.*.explanation').optional().trim(),
   validate,
 ];
 

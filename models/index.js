@@ -47,15 +47,38 @@ kanjiSchema.pre('validate', function normalizeKanji(next) {
    GRAMMAR
 ══════════════════════════════════════════════════════════════ */
 const grammarSchema = new mongoose.Schema({
-  level:       { type: String, required: true, enum: ['N5','N4','N3','N2','N1'], index: true },
-  title:       { type: String, required: true, trim: true },
-  structure:   { type: String, trim: true, default: '' },
-  explanation: { type: String, required: true, trim: true },
-  example:     { type: String, trim: true, default: '' },
-  exampleEn:   { type: String, trim: true, default: '' },
-  isActive:    { type: Boolean, default: true },
-  createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  level:        { type: String, required: true, enum: ['N5','N4','N3','N2','N1'], index: true },
+  title:        { type: String, required: true, trim: true },
+  chapter:      { type: String, trim: true, default: 'Grammar Foundations' },
+  order:        { type: Number, default: 1, min: 1 },
+  structure:    { type: String, trim: true, default: '' },
+  explanation:  { type: String, required: true, trim: true },
+  objective:    { type: String, trim: true, default: '' },
+  example:      { type: String, trim: true, default: '' },
+  exampleEn:    { type: String, trim: true, default: '' },
+  sentences:    [{
+    japanese: { type: String, trim: true, required: true },
+    english:  { type: String, trim: true, default: '' },
+    note:     { type: String, trim: true, default: '' },
+  }],
+  exercises:    [{
+    type:        { type: String, enum: ['choice','type'], default: 'choice' },
+    prompt:      { type: String, trim: true, required: true },
+    sentence:    { type: String, trim: true, default: '' },
+    answer:      { type: String, trim: true, required: true },
+    choices:     [{ type: String, trim: true }],
+    explanation: { type: String, trim: true, default: '' },
+  }],
+  isActive:     { type: Boolean, default: true },
+  createdBy:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
+
+grammarSchema.pre('validate', function normalizeGrammar(next) {
+  if ((!this.sentences || this.sentences.length === 0) && this.example) {
+    this.sentences = [{ japanese: this.example, english: this.exampleEn || '', note: '' }];
+  }
+  next();
+});
 
 /* ══════════════════════════════════════════════════════════════
    QUIZ QUESTION
@@ -115,16 +138,6 @@ const announcementSchema = new mongoose.Schema({
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
-/* ══════════════════════════════════════════════════════════════
-   PREREGISTRATION / WAITLIST
-══════════════════════════════════════════════════════════════ */
-const preregistrationSchema = new mongoose.Schema({
-  email:     { type: String, required: true, lowercase: true, trim: true, unique: true, index: true },
-  source:    { type: String, trim: true, default: 'website' },
-  userAgent: { type: String, trim: true, default: '' },
-  ip:        { type: String, trim: true, default: '' },
-}, { timestamps: true });
-
 module.exports = {
   Kanji:        mongoose.model('Kanji',        kanjiSchema),
   Grammar:      mongoose.model('Grammar',      grammarSchema),
@@ -132,5 +145,4 @@ module.exports = {
   Progress:     mongoose.model('Progress',     progressSchema),
   QuizAttempt:  mongoose.model('QuizAttempt',  quizAttemptSchema),
   Announcement: mongoose.model('Announcement', announcementSchema),
-  Preregistration: mongoose.model('Preregistration', preregistrationSchema),
 };

@@ -28,7 +28,7 @@ const { protect, protectAdmin } = require('../middleware/auth');
 const {
   validateSignup, validateLogin, validateForgotPassword,
   validateResetPassword, validateVocab, validateKanji,
-  validateGrammar, validateQuiz, validateAnnouncement, validatePreregistration,
+  validateGrammar, validateQuiz, validateAnnouncement,
 } = require('../middleware/validators');
 
 const authCtrl  = require('../controllers/authController');
@@ -61,6 +61,9 @@ vocabRouter.get('/:id', vocabCtrl.getOne);
 ══════════════════════════════════════════════════════════════ */
 const kanaRouter = express.Router();
 kanaRouter.get('/', kanaCtrl.getAll); // public — returns all hiragana + katakana
+kanaRouter.get('/progress', protect, kanaCtrl.getProgress);
+kanaRouter.get('/session',  protect, kanaCtrl.getSession);
+kanaRouter.patch('/progress', protect, kanaCtrl.updateProgress);
 
 /* ══════════════════════════════════════════════════════════════
    KANJI  /api/kanji
@@ -97,12 +100,6 @@ progressRouter.post('/update',ctrl.updateProgress);
 ══════════════════════════════════════════════════════════════ */
 const announcementRouter = express.Router();
 announcementRouter.get('/', ctrl.getAnnouncements);
-
-/* ══════════════════════════════════════════════════════════════
-   PREREGISTRATION  /api/preregister
-══════════════════════════════════════════════════════════════ */
-const preregisterRouter = express.Router();
-preregisterRouter.post('/', validatePreregistration, ctrl.createPreregistration);
 
 /* ══════════════════════════════════════════════════════════════
    ADMIN  /api/admin  (all protected by protectAdmin)
@@ -164,7 +161,6 @@ router.use('/grammar',       grammarRouter);
 router.use('/quiz',          quizRouter);
 router.use('/progress',      progressRouter);
 router.use('/announcements', announcementRouter);
-router.use('/preregister',   preregisterRouter);
 router.use('/admin',         adminRouter);
 
 module.exports = router;

@@ -1,41 +1,13 @@
-const { Kanji, Grammar, Quiz, Progress, QuizAttempt, Announcement, Preregistration } = require('../models/index');
+const { Kanji, Grammar, Quiz, Progress, QuizAttempt, Announcement } = require('../models/index');
 const User              = require('../models/User');
+const KanaProgress      = require('../models/KanaProgress');
 const { asyncHandler }  = require('../middleware/error');
-
-/* ════════════════════════════════════════════════════════════════
-   PREREGISTRATION
-════════════════════════════════════════════════════════════════ */
-exports.createPreregistration = asyncHandler(async (req, res) => {
-  const email = String(req.body.email || '').toLowerCase().trim();
-  const existing = await Preregistration.findOne({ email });
-
-  if (existing) {
-    return res.json({
-      success: true,
-      message: 'You are already on the early access list.',
-      data: { email: existing.email },
-    });
-  }
-
-  const item = await Preregistration.create({
-    email,
-    source: req.body.source || 'website',
-    userAgent: req.get('user-agent') || '',
-    ip: req.ip || '',
-  });
-
-  res.status(201).json({
-    success: true,
-    message: 'You are on the early access list.',
-    data: { email: item.email },
-  });
-});
 
 /* ════════════════════════════════════════════════════════════════
    KANJI
 ════════════════════════════════════════════════════════════════ */
 exports.getAllKanji = asyncHandler(async (req, res) => {
-  const { level, page = 1, limit = 50, search } = req.query;
+  const { level, page = 1, limit = 500, search } = req.query;
   const filter = { isActive: true };
   if (level)  filter.level = level;
   if (search) filter.$or = [
@@ -81,17 +53,22 @@ exports.removeKanji = asyncHandler(async (req, res) => {
    GRAMMAR
 ════════════════════════════════════════════════════════════════ */
 exports.getAllGrammar = asyncHandler(async (req, res) => {
-  const { level, page = 1, limit = 30, search } = req.query;
+  const { level, page = 1, limit = 100, search } = req.query;
   const filter = { isActive: true };
   if (level)  filter.level = level;
   if (search) filter.$or = [
     { title:       { $regex: search, $options: 'i' } },
+    { chapter:     { $regex: search, $options: 'i' } },
+    { structure:   { $regex: search, $options: 'i' } },
     { explanation: { $regex: search, $options: 'i' } },
+    { objective:   { $regex: search, $options: 'i' } },
+    { example:     { $regex: search, $options: 'i' } },
+    { exampleEn:   { $regex: search, $options: 'i' } },
   ];
 
   const skip  = (parseInt(page) - 1) * parseInt(limit);
   const total = await Grammar.countDocuments(filter);
-  const data  = await Grammar.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit));
+  const data  = await Grammar.find(filter).sort({ level: 1, order: 1, createdAt: -1 }).skip(skip).limit(parseInt(limit));
   res.json({ success: true, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)), data });
 });
 
@@ -319,6 +296,7 @@ exports.deleteUser = asyncHandler(async (req, res) => {
   // Clean up their progress too
   await Progress.deleteMany({ user: req.params.id });
   await QuizAttempt.deleteMany({ user: req.params.id });
+  await KanaProgress.deleteOne({ user: req.params.id });
   res.json({ success: true, message: 'User and all data deleted' });
 });
 
