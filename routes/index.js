@@ -24,25 +24,6 @@
 const express = require('express');
 const router  = express.Router();
 
-router.post("/preregister", async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    await db.collection("preregistrations").insertOne({
-      email,
-      createdAt: new Date()
-    });
-
-    res.status(200).json({
-      success: true
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: error.message
-    });
-  }
-});
-
 const { protect, protectAdmin } = require('../middleware/auth');
 const {
   validateSignup, validateLogin, validateForgotPassword,
