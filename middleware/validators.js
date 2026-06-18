@@ -32,6 +32,11 @@ exports.validateForgotPassword = [
   validate,
 ];
 
+exports.validatePreregistration = [
+  body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
+  validate,
+];
+
 exports.validateResetPassword = [
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   validate,

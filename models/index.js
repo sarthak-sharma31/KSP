@@ -146,3 +146,23 @@ module.exports = {
   QuizAttempt:  mongoose.model('QuizAttempt',  quizAttemptSchema),
   Announcement: mongoose.model('Announcement', announcementSchema),
 };
+
+/* ══════════════════════════════════════════════════════════════
+   PREREGISTRATION / WAITLIST
+══════════════════════════════════════════════════════════════ */
+const preregistrationSchema = new mongoose.Schema({
+  email:     { type: String, required: true, lowercase: true, trim: true, unique: true, index: true },
+  source:    { type: String, trim: true, default: 'website' },
+  userAgent: { type: String, trim: true, default: '' },
+  ip:        { type: String, trim: true, default: '' },
+}, { timestamps: true });
+
+module.exports = {
+  Kanji:        mongoose.model('Kanji',        kanjiSchema),
+  Grammar:      mongoose.model('Grammar',      grammarSchema),
+  Quiz:         mongoose.model('Quiz',         quizSchema),
+  Progress:     mongoose.model('Progress',     progressSchema),
+  QuizAttempt:  mongoose.model('QuizAttempt',  quizAttemptSchema),
+  Announcement: mongoose.model('Announcement', announcementSchema),
+  Preregistration: mongoose.model('Preregistration', preregistrationSchema),
+};

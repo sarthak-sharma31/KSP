@@ -1,7 +1,34 @@
-const { Kanji, Grammar, Quiz, Progress, QuizAttempt, Announcement } = require('../models/index');
+const { Kanji, Grammar, Quiz, Progress, QuizAttempt, Announcement, Preregistration} = require('../models/index');
 const User              = require('../models/User');
 const KanaProgress      = require('../models/KanaProgress');
 const { asyncHandler }  = require('../middleware/error');
+
+exports.createPreregistration = asyncHandler(async (req, res) => {
+  const email = String(req.body.email || '').toLowerCase().trim();
+  const existing = await Preregistration.findOne({ email });
+
+  if (existing) {
+    return res.json({
+      success: true,
+      message: 'You are already on the early access list.',
+      data: { email: existing.email },
+    });
+  }
+
+  const item = await Preregistration.create({
+    email,
+    source: req.body.source || 'website',
+    userAgent: req.get('user-agent') || '',
+    ip: req.ip || '',
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'You are on the early access list.',
+    data: { email: item.email },
+  });
+});
+
 
 /* ════════════════════════════════════════════════════════════════
    KANJI

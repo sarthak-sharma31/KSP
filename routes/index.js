@@ -47,7 +47,7 @@ const { protect, protectAdmin } = require('../middleware/auth');
 const {
   validateSignup, validateLogin, validateForgotPassword,
   validateResetPassword, validateVocab, validateKanji,
-  validateGrammar, validateQuiz, validateAnnouncement,
+  validateGrammar, validateQuiz, validateAnnouncement, validatePreregistration,
 } = require('../middleware/validators');
 
 const authCtrl  = require('../controllers/authController');
@@ -121,6 +121,12 @@ const announcementRouter = express.Router();
 announcementRouter.get('/', ctrl.getAnnouncements);
 
 /* ══════════════════════════════════════════════════════════════
+   PREREGISTRATION  /api/preregister   PREREGISTRATION  /api/preregister
+══════════════════════════════════════════════════════════════ */
+const preregisterRouter = express.Router();const preregisterRouter = express.Router();
+preregisterRouter.post('/', validatePreregistration, ctrl.createPreregistration);
+
+/* ══════════════════════════════════════════════════════════════
    ADMIN  /api/admin  (all protected by protectAdmin)
 ══════════════════════════════════════════════════════════════ */
 const adminRouter = express.Router();
@@ -180,6 +186,7 @@ router.use('/grammar',       grammarRouter);
 router.use('/quiz',          quizRouter);
 router.use('/progress',      progressRouter);
 router.use('/announcements', announcementRouter);
+router.use('/preregister',   preregisterRouter);
 router.use('/admin',         adminRouter);
 
 module.exports = router;
