@@ -123,7 +123,7 @@ announcementRouter.get('/', ctrl.getAnnouncements);
 /* ══════════════════════════════════════════════════════════════
    PREREGISTRATION  /api/preregister   PREREGISTRATION  /api/preregister
 ══════════════════════════════════════════════════════════════ */
-const preregisterRouter = express.Router();const preregisterRouter = express.Router();
+const preregisterRouter = express.Router();
 preregisterRouter.post('/', validatePreregistration, ctrl.createPreregistration);
 
 /* ══════════════════════════════════════════════════════════════
