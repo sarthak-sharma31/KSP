@@ -2,10 +2,11 @@ const Kana = require('../models/Kana');
 const KanaProgress = require('../models/KanaProgress');
 const { asyncHandler } = require('../middleware/error');
 
-const MIN_SESSION = 20;
+const MIN_SESSION = 14;
 const MAX_SESSION = 25;
 
 const clamp = value => Math.max(0, Math.min(100, Number(value) || 0));
+const randomInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 const progressToObject = progress => ({
   hiragana: Object.fromEntries(progress?.hiragana || []),
@@ -123,9 +124,10 @@ exports.updateProgress = asyncHandler(async (req, res) => {
     if (!validateType(type) || !result.kana) return;
 
     const current = getMastery(progress, type, result.kana);
-    const next = clamp(current + (result.correct ? 12 : -7));
+    const delta = result.correct ? randomInt(4, 9) : -randomInt(6, 12);
+    const next = clamp(current + delta);
     progress[type].set(result.kana, next);
-    updated.push({ type, kana: result.kana, mastery: next });
+    updated.push({ type, kana: result.kana, mastery: next, delta });
   });
 
   await progress.save();
