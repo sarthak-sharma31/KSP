@@ -30,11 +30,13 @@ const {
   validateResetPassword, validateVocab, validateKanji,
   validateGrammar, validateQuiz, validateAnnouncement, validatePreregistration,
 } = require('../middleware/validators');
+const { validatePracticeTest, validateTestSubmission } = require('../middleware/practiceTestValidator');
 
 const authCtrl  = require('../controllers/authController');
 const vocabCtrl = require('../controllers/vocabularyController');
 const kanaCtrl  = require('../controllers/kanaController');
 const ctrl      = require('../controllers/mainController');
+const practiceTestCtrl = require('../controllers/practiceTestController');
 
 /* ══════════════════════════════════════════════════════════════
    AUTH  /api/auth
@@ -53,6 +55,9 @@ authRouter.patch('/update-password', protect,                authCtrl.updatePass
 ══════════════════════════════════════════════════════════════ */
 const vocabRouter = express.Router();
 vocabRouter.get('/',    vocabCtrl.getAll);
+vocabRouter.get('/progress', protect, vocabCtrl.getProgress);
+vocabRouter.get('/session', protect, vocabCtrl.getSession);
+vocabRouter.patch('/progress', protect, vocabCtrl.updateMastery);
 vocabRouter.get('/due', protect, vocabCtrl.getDueCards);
 vocabRouter.get('/:id', vocabCtrl.getOne);
 
@@ -85,6 +90,18 @@ const quizRouter = express.Router();
 quizRouter.get('/',        ctrl.getQuizForUser);
 quizRouter.get('/all',     protect, ctrl.getAllQuiz);
 quizRouter.post('/attempt',protect, ctrl.submitQuizAttempt);
+
+/* ══════════════════════════════════════════════════════════════
+   PRACTICE TESTS  /api/practice-tests
+══════════════════════════════════════════════════════════════ */
+const practiceTestRouter = express.Router();
+practiceTestRouter.get('/',                          practiceTestCtrl.getAllTests);
+practiceTestRouter.get('/:id',                       practiceTestCtrl.getTest);
+practiceTestRouter.get('/:id/progress',      protect, practiceTestCtrl.getTestProgress);
+practiceTestRouter.post('/:id/start',        protect, practiceTestCtrl.startTest);
+practiceTestRouter.post('/:id/submit',       protect, validateTestSubmission, practiceTestCtrl.submitTest);
+practiceTestRouter.get('/attempts/history',  protect, practiceTestCtrl.getUserTestHistory);
+practiceTestRouter.get('/attempts/:attemptId', protect, practiceTestCtrl.getAttemptDetails);
 
 /* ══════════════════════════════════════════════════════════════
    PROGRESS  /api/progress
@@ -146,6 +163,13 @@ adminRouter.post  ('/quiz',     validateQuiz, ctrl.createQuiz);
 adminRouter.put   ('/quiz/:id', validateQuiz, ctrl.updateQuiz);
 adminRouter.delete('/quiz/:id',               ctrl.removeQuiz);
 
+// Practice Tests
+adminRouter.get   ('/practice-tests',           practiceTestCtrl.adminGetAllTests);
+adminRouter.post  ('/practice-tests',           validatePracticeTest, practiceTestCtrl.adminCreateTest);
+adminRouter.put   ('/practice-tests/:id',       validatePracticeTest, practiceTestCtrl.adminUpdateTest);
+adminRouter.delete('/practice-tests/:id',       practiceTestCtrl.adminDeleteTest);
+adminRouter.get   ('/practice-tests/:id/attempts', practiceTestCtrl.adminGetTestAttempts);
+
 // Users
 adminRouter.get   ('/users',            ctrl.getAllUsers);
 adminRouter.get   ('/users/:id',        ctrl.getOneUser);
@@ -168,6 +192,7 @@ router.use('/quiz',          quizRouter);
 router.use('/progress',      progressRouter);
 router.use('/announcements', announcementRouter);
 router.use('/preregister',   preregisterRouter);
+router.use('/practice-tests', practiceTestRouter);
 router.use('/admin',         adminRouter);
 
 module.exports = router;

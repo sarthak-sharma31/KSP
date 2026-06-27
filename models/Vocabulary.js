@@ -9,6 +9,7 @@ const vocabularySchema = new mongoose.Schema({
   },
   kanji: { type: String, required: true, trim: true },
   kana: { type: String, required: true, trim: true },
+  romaji: { type: String, trim: true, default: '' },
   meaning: { type: String, required: true, trim: true },
   type: {
     type: String,

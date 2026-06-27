@@ -47,8 +47,9 @@ exports.validateVocab = [
   body('level').isIn(['N5','N4','N3','N2','N1']).withMessage('Valid level required'),
   body('kanji').trim().notEmpty().withMessage('Kanji/word is required'),
   body('kana').trim().notEmpty().withMessage('Kana reading is required'),
+  body('romaji').optional().trim(),
   body('meaning').trim().notEmpty().withMessage('Meaning is required'),
-  body('type').optional().isIn(['noun','verb','adj','adverb','particle','expression']),
+  body('type').optional().isIn(['noun','verb','i-adjective','na-adjective','adverb','particle','expression','pronoun','numeric','pre-noun adjectival']),
   validate,
 ];
 

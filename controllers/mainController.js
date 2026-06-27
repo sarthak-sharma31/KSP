@@ -1,6 +1,7 @@
 const { Kanji, Grammar, Quiz, Progress, QuizAttempt, Announcement, Preregistration} = require('../models/index');
 const User              = require('../models/User');
 const KanaProgress      = require('../models/KanaProgress');
+const VocabularyProgress = require('../models/VocabularyProgress');
 const { asyncHandler }  = require('../middleware/error');
 
 exports.createPreregistration = asyncHandler(async (req, res) => {
@@ -324,6 +325,7 @@ exports.deleteUser = asyncHandler(async (req, res) => {
   await Progress.deleteMany({ user: req.params.id });
   await QuizAttempt.deleteMany({ user: req.params.id });
   await KanaProgress.deleteOne({ user: req.params.id });
+  await VocabularyProgress.deleteOne({ user: req.params.id });
   res.json({ success: true, message: 'User and all data deleted' });
 });
 

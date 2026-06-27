@@ -157,6 +157,10 @@ const preregistrationSchema = new mongoose.Schema({
   ip:        { type: String, trim: true, default: '' },
 }, { timestamps: true });
 
+const PracticeTest = require('./PracticeTest');
+const TestAttempt = require('./TestAttempt');
+const TestProgress = require('./TestProgress');
+
 module.exports = {
   Kanji:        mongoose.model('Kanji',        kanjiSchema),
   Grammar:      mongoose.model('Grammar',      grammarSchema),
@@ -165,4 +169,7 @@ module.exports = {
   QuizAttempt:  mongoose.model('QuizAttempt',  quizAttemptSchema),
   Announcement: mongoose.model('Announcement', announcementSchema),
   Preregistration: mongoose.model('Preregistration', preregistrationSchema),
+  PracticeTest,
+  TestAttempt,
+  TestProgress,
 };
