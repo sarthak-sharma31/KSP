@@ -75,6 +75,9 @@ kanaRouter.patch('/progress', protect, kanaCtrl.updateProgress);
 ══════════════════════════════════════════════════════════════ */
 const kanjiRouter = express.Router();
 kanjiRouter.get('/',    ctrl.getAllKanji);
+kanjiRouter.get('/progress', protect, ctrl.getKanjiProgress);
+kanjiRouter.get('/session',  protect, ctrl.getKanjiSession);
+kanjiRouter.patch('/progress', protect, ctrl.updateKanjiProgress);
 kanjiRouter.get('/:id', ctrl.getOneKanji);
 
 /* ══════════════════════════════════════════════════════════════

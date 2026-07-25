@@ -1,8 +1,70 @@
 const { Kanji, Grammar, Quiz, Progress, QuizAttempt, Announcement, Preregistration} = require('../models/index');
 const User              = require('../models/User');
 const KanaProgress      = require('../models/KanaProgress');
+const KanjiProgress     = require('../models/KanjiProgress');
 const VocabularyProgress = require('../models/VocabularyProgress');
 const { asyncHandler }  = require('../middleware/error');
+
+const KANJI_MIN_SESSION = 14;
+const KANJI_MAX_SESSION = 25;
+const clampMastery = value => Math.max(0, Math.min(100, Number(value) || 0));
+const randomInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+const shuffleItems = items => {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+const kanjiProgressToObject = progress => ({
+  kanji: Object.fromEntries(progress?.kanji || []),
+});
+const kanjiProgressKey = itemOrId => String(itemOrId?._id || itemOrId || '');
+const getKanjiMastery = (progress, itemOrId) => clampMastery(progress?.kanji?.get?.(kanjiProgressKey(itemOrId)) || 0);
+const getOrCreateKanjiProgress = async userId => (
+  KanjiProgress.findOneAndUpdate(
+    { user: userId },
+    { $setOnInsert: { user: userId, kanji: {} } },
+    { new: true, upsert: true }
+  )
+);
+const randomKanjiSessionSize = total => {
+  const size = KANJI_MIN_SESSION + Math.floor(Math.random() * (KANJI_MAX_SESSION - KANJI_MIN_SESSION + 1));
+  return Math.min(total, size);
+};
+const weightedKanjiSample = (items, progress, target) => {
+  const pool = [...items];
+  const picked = [];
+
+  while (pool.length && picked.length < target) {
+    const totalWeight = pool.reduce((sum, item) => (
+      sum + Math.max(6, 106 - getKanjiMastery(progress, item))
+    ), 0);
+    let cursor = Math.random() * totalWeight;
+    const index = pool.findIndex(item => {
+      cursor -= Math.max(6, 106 - getKanjiMastery(progress, item));
+      return cursor <= 0;
+    });
+    const safeIndex = index === -1 ? pool.length - 1 : index;
+    picked.push(pool.splice(safeIndex, 1)[0]);
+  }
+
+  return picked;
+};
+const buildAdaptiveKanjiSession = (items, progress) => {
+  const target = randomKanjiSessionSize(items.length);
+  const masteries = items.map(item => getKanjiMastery(progress, item));
+  const allSame = masteries.every(value => value === masteries[0]);
+  const allZero = masteries.every(value => value === 0);
+
+  if (allSame || allZero) return shuffleItems(items).slice(0, target);
+  return weightedKanjiSample(items, progress, target);
+};
+const withKanjiMastery = (items, progress) => items.map(item => ({
+  ...item.toObject(),
+  mastery: getKanjiMastery(progress, item),
+}));
 
 exports.createPreregistration = asyncHandler(async (req, res) => {
   const email = String(req.body.email || '').toLowerCase().trim();
@@ -51,13 +113,63 @@ exports.getAllKanji = asyncHandler(async (req, res) => {
   const skip  = (parseInt(page) - 1) * parseInt(limit);
   const total = await Kanji.countDocuments(filter);
   const data  = await Kanji.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit));
-  res.json({ success: true, total, page: parseInt(page), pages: Math.ceil(total / parseInt(limit)), data });
+  let progress = null;
+  if (req.user?._id) progress = await getOrCreateKanjiProgress(req.user._id);
+  res.json({
+    success: true,
+    total,
+    page: parseInt(page),
+    pages: Math.ceil(total / parseInt(limit)),
+    data: progress ? withKanjiMastery(data, progress) : data,
+    progress: progress ? kanjiProgressToObject(progress) : undefined,
+  });
 });
 
 exports.getOneKanji = asyncHandler(async (req, res) => {
   const item = await Kanji.findById(req.params.id);
   if (!item) return res.status(404).json({ success: false, message: 'Kanji not found' });
   res.json({ success: true, data: item });
+});
+
+exports.getKanjiProgress = asyncHandler(async (req, res) => {
+  const progress = await getOrCreateKanjiProgress(req.user._id);
+  res.json({ success: true, data: kanjiProgressToObject(progress) });
+});
+
+exports.getKanjiSession = asyncHandler(async (req, res) => {
+  const { level = 'N5' } = req.query;
+  const progress = await getOrCreateKanjiProgress(req.user._id);
+  const allKanji = await Kanji.find({ level, isActive: true }).sort({ createdAt: -1 });
+  const session = buildAdaptiveKanjiSession(allKanji, progress);
+
+  res.json({
+    success: true,
+    total: session.length,
+    data: withKanjiMastery(session, progress),
+    progress: kanjiProgressToObject(progress),
+  });
+});
+
+exports.updateKanjiProgress = asyncHandler(async (req, res) => {
+  const results = Array.isArray(req.body.results)
+    ? req.body.results
+    : [{ kanjiId: req.body.kanjiId || req.body.id, correct: req.body.correct }];
+
+  const progress = await getOrCreateKanjiProgress(req.user._id);
+  const updated = [];
+
+  results.forEach(result => {
+    if (!result.kanjiId) return;
+    const key = String(result.kanjiId);
+    const current = getKanjiMastery(progress, key);
+    const delta = result.correct ? randomInt(4, 9) : -randomInt(6, 12);
+    const next = clampMastery(current + delta);
+    progress.kanji.set(key, next);
+    updated.push({ kanjiId: key, mastery: next, delta });
+  });
+
+  await progress.save();
+  res.json({ success: true, data: kanjiProgressToObject(progress), updated });
 });
 
 exports.createKanji = asyncHandler(async (req, res) => {
