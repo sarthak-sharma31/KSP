@@ -27,6 +27,11 @@ exports.validateLogin = [
   validate,
 ];
 
+exports.validateGoogleAuth = [
+  body('credential').notEmpty().withMessage('Google credential is required'),
+  validate,
+];
+
 exports.validateForgotPassword = [
   body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
   validate,

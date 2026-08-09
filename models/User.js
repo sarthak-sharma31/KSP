@@ -28,6 +28,21 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user',
   },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local',
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true,
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false,
+  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'banned'],

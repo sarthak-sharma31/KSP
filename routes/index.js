@@ -29,6 +29,7 @@ const {
   validateSignup, validateLogin, validateForgotPassword,
   validateResetPassword, validateVocab, validateKanji,
   validateGrammar, validateQuiz, validateAnnouncement, validatePreregistration,
+  validateGoogleAuth,
 } = require('../middleware/validators');
 const { validatePracticeTest, validateTestSubmission } = require('../middleware/practiceTestValidator');
 
@@ -44,6 +45,7 @@ const practiceTestCtrl = require('../controllers/practiceTestController');
 const authRouter = express.Router();
 authRouter.post('/signup',           validateSignup,         authCtrl.signup);
 authRouter.post('/login',            validateLogin,          authCtrl.login);
+authRouter.post('/google',           validateGoogleAuth,     authCtrl.googleAuth);
 authRouter.post('/admin/login',      validateLogin,          authCtrl.adminLogin);
 authRouter.get ('/me',               protect,                authCtrl.getMe);
 authRouter.post('/forgot-password',  validateForgotPassword, authCtrl.forgotPassword);
