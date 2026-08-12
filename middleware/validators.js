@@ -47,6 +47,13 @@ exports.validateResetPassword = [
   validate,
 ];
 
+exports.validateVerifyResetOtp = [
+  body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
+  body('otp').trim().isLength({ min: 5, max: 5 }).withMessage('Enter the 5-digit code')
+    .isNumeric().withMessage('The code is 5 digits'),
+  validate,
+];
+
 /* ── Vocabulary validators ───────────────────────────────────── */
 exports.validateVocab = [
   body('level').isIn(['N5','N4','N3','N2','N1']).withMessage('Valid level required'),

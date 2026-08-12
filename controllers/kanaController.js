@@ -1,6 +1,7 @@
 const Kana = require('../models/Kana');
 const KanaProgress = require('../models/KanaProgress');
 const { asyncHandler } = require('../middleware/error');
+const { registerStudyActivity } = require('../utils/streak');
 
 const MIN_SESSION = 14;
 const MAX_SESSION = 25;
@@ -131,6 +132,7 @@ exports.updateProgress = asyncHandler(async (req, res) => {
   });
 
   await progress.save();
+  if (updated.length) await registerStudyActivity(req.user._id);
   res.json({ success: true, data: progressToObject(progress), updated });
 });
 

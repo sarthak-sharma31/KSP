@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const User   = require('../models/User');
 const { asyncHandler }           = require('../middleware/error');
-const { sendTokenResponse, sendPasswordResetEmail, sendWelcomeEmail } = require('../utils/helpers');
+const { sendTokenResponse, sendPasswordResetOtpEmail, sendWelcomeEmail } = require('../utils/helpers');
 
 const verifyGoogleCredential = async (credential) => {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -126,28 +126,75 @@ exports.getMe = asyncHandler(async (req, res) => {
   res.json({ success: true, user });
 });
 
-/* ── POST /api/auth/forgot-password ─────────────────────────── */
-exports.forgotPassword = asyncHandler(async (req, res) => {
-  const user = await User.findOne({ email: req.body.email });
-  if (!user) {
-    // Don't reveal whether email exists
-    return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
-  }
+/* ── POST /api/auth/forgot-password ─────────────────────────────
+   Step 1 of 3 — emails a 5-digit OTP.
+   Always reports success so this can't be used to probe which
+   addresses have accounts. */
+const OTP_TTL_MINUTES = 10;
 
-  const resetToken = user.createPasswordResetToken();
+exports.forgotPassword = asyncHandler(async (req, res) => {
+  const genericResponse = {
+    success: true,
+    message: `If that email exists, we've sent a ${OTP_TTL_MINUTES}-minute reset code to it.`,
+  };
+
+  const user = await User.findOne({ email: req.body.email }).select(
+    '+passwordResetOtp +passwordResetOtpExpires +passwordResetAttempts'
+  );
+  if (!user) return res.json(genericResponse);
+
+  const otp = user.createPasswordResetOtp();
   await user.save({ validateBeforeSave: false });
 
-  const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
-
   try {
-    await sendPasswordResetEmail({ email: user.email, name: user.name, resetUrl });
-    res.json({ success: true, message: 'Password reset link sent to your email.' });
+    await sendPasswordResetOtpEmail({
+      email: user.email,
+      name: user.name,
+      otp,
+      ttlMinutes: OTP_TTL_MINUTES,
+    });
   } catch (err) {
-    user.passwordResetToken   = undefined;
-    user.passwordResetExpires = undefined;
+    user.clearPasswordResetOtp();
     await user.save({ validateBeforeSave: false });
-    res.status(500).json({ success: false, message: 'Email could not be sent. Try again later.' });
+    return res.status(500).json({ success: false, message: 'Email could not be sent. Try again later.' });
   }
+
+  res.json(genericResponse);
+});
+
+/* ── POST /api/auth/verify-reset-otp ────────────────────────────
+   Step 2 of 3 — trades a valid OTP for a short-lived reset token,
+   which step 3 (PATCH /reset-password/:token) consumes. */
+exports.verifyResetOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  const user = await User.findOne({ email }).select(
+    '+passwordResetOtp +passwordResetOtpExpires +passwordResetAttempts'
+  );
+
+  // Same message for "no such user" and "wrong code" — don't leak existence.
+  const invalid = { success: false, message: 'That code is incorrect or has expired.' };
+  if (!user) return res.status(400).json(invalid);
+
+  const result = user.verifyPasswordResetOtp(otp);
+
+  if (result !== 'ok') {
+    await user.save({ validateBeforeSave: false }); // persist the burned attempt
+    if (result === 'locked') {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many incorrect codes. Request a new one to continue.',
+      });
+    }
+    return res.status(400).json(invalid);
+  }
+
+  // Correct — burn the OTP so it's single-use, and issue the reset token.
+  const resetToken = user.createPasswordResetToken();
+  user.clearPasswordResetOtp();
+  await user.save({ validateBeforeSave: false });
+
+  res.json({ success: true, resetToken, message: 'Code verified. You can now set a new password.' });
 });
 
 /* ── PATCH /api/auth/reset-password/:token ───────────────────── */
@@ -170,6 +217,7 @@ exports.resetPassword = asyncHandler(async (req, res) => {
   user.password             = req.body.password;
   user.passwordResetToken   = undefined;
   user.passwordResetExpires = undefined;
+  user.clearPasswordResetOtp(); // belt and braces — nothing reusable left behind
   await user.save();
 
   sendTokenResponse(user, 200, res);

@@ -29,7 +29,7 @@ const {
   validateSignup, validateLogin, validateForgotPassword,
   validateResetPassword, validateVocab, validateKanji,
   validateGrammar, validateQuiz, validateAnnouncement, validatePreregistration,
-  validateGoogleAuth,
+  validateGoogleAuth, validateVerifyResetOtp,
 } = require('../middleware/validators');
 const { validatePracticeTest, validateTestSubmission } = require('../middleware/practiceTestValidator');
 
@@ -38,6 +38,7 @@ const vocabCtrl = require('../controllers/vocabularyController');
 const kanaCtrl  = require('../controllers/kanaController');
 const ctrl      = require('../controllers/mainController');
 const practiceTestCtrl = require('../controllers/practiceTestController');
+const roadmapCtrl = require('../controllers/roadmapController');
 
 /* ══════════════════════════════════════════════════════════════
    AUTH  /api/auth
@@ -49,6 +50,7 @@ authRouter.post('/google',           validateGoogleAuth,     authCtrl.googleAuth
 authRouter.post('/admin/login',      validateLogin,          authCtrl.adminLogin);
 authRouter.get ('/me',               protect,                authCtrl.getMe);
 authRouter.post('/forgot-password',  validateForgotPassword, authCtrl.forgotPassword);
+authRouter.post('/verify-reset-otp', validateVerifyResetOtp, authCtrl.verifyResetOtp);
 authRouter.patch('/reset-password/:token', validateResetPassword, authCtrl.resetPassword);
 authRouter.patch('/update-password', protect,                authCtrl.updatePassword);
 
@@ -109,6 +111,14 @@ practiceTestRouter.get('/attempts/history',  protect, practiceTestCtrl.getUserTe
 practiceTestRouter.get('/attempts/:attemptId', protect, practiceTestCtrl.getAttemptDetails);
 
 /* ══════════════════════════════════════════════════════════════
+   ROADMAP  /api/roadmap
+══════════════════════════════════════════════════════════════ */
+const roadmapRouter = express.Router();
+roadmapRouter.use(protect);
+roadmapRouter.get('/', roadmapCtrl.getRoadmap);
+roadmapRouter.post('/complete', roadmapCtrl.completeLesson);
+
+/* ══════════════════════════════════════════════════════════════
    PROGRESS  /api/progress
 ══════════════════════════════════════════════════════════════ */
 const progressRouter = express.Router();
@@ -116,6 +126,8 @@ progressRouter.use(protect);
 progressRouter.get('/',       ctrl.getUserStats);
 progressRouter.get('/due',    ctrl.getDueCards);
 progressRouter.post('/update',ctrl.updateProgress);
+progressRouter.get('/streak', ctrl.getStreakCalendar);
+progressRouter.post('/activity', ctrl.registerActivity);
 
 /* ══════════════════════════════════════════════════════════════
    ANNOUNCEMENTS  /api/announcements
@@ -198,6 +210,7 @@ router.use('/progress',      progressRouter);
 router.use('/announcements', announcementRouter);
 router.use('/preregister',   preregisterRouter);
 router.use('/practice-tests', practiceTestRouter);
+router.use('/roadmap',       roadmapRouter);
 router.use('/admin',         adminRouter);
 
 module.exports = router;

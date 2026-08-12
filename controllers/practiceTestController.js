@@ -1,5 +1,6 @@
 const { PracticeTest, TestAttempt, TestProgress } = require('../models/index');
 const { asyncHandler } = require('../middleware/error');
+const { registerStudyActivity } = require('../utils/streak');
 
 /* ════════════════════════════════════════════════════════════════
    PUBLIC ENDPOINTS — User test-taking
@@ -185,6 +186,8 @@ exports.submitTest = asyncHandler(async (req, res) => {
     user: req.user._id,
     practiceTest: req.params.id,
   });
+
+  await registerStudyActivity(req.user._id);
 
   res.status(201).json({ success: true, data: attempt });
 });

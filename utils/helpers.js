@@ -32,6 +32,7 @@ exports.sendTokenResponse = (user, statusCode, res, isAdmin = false) => {
       currentLevel: user.currentLevel,
       xp:           user.xp,
       streak:       user.streak,
+      lastStudied:  user.lastStudied,
       createdAt:    user.createdAt,
     },
   });
@@ -113,6 +114,55 @@ exports.sendPasswordResetEmail = async ({ email, name, resetUrl }) => {
       resetUrl,
       '',
       'This link expires in 15 minutes.',
+    ].join('\n'),
+    html,
+  });
+};
+
+/* ── Send password reset OTP ─────────────────────────────────── */
+exports.sendPasswordResetOtpEmail = async ({ email, name, otp, ttlMinutes = 10 }) => {
+  const digits = String(otp)
+    .split('')
+    .map(d => `<span style="display:inline-block;min-width:44px;padding:14px 0;margin:0 4px;
+                 background:#fff;border:1px solid #ffd9bd;border-radius:10px;
+                 font-size:28px;font-weight:800;color:#f97316;letter-spacing:2px;">${d}</span>`)
+    .join('');
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <span style="font-size:36px;">🦊</span>
+        <h2 style="color:#f97316;margin:8px 0 0;">KitsuSpeak</h2>
+      </div>
+      <h3 style="color:#1a1a2e;">Your password reset code</h3>
+      <p style="color:#555;line-height:1.6;">Hi <strong>${name}</strong>,</p>
+      <p style="color:#555;line-height:1.6;">
+        Use the code below to reset your KitsuSpeak password.
+        It expires in <strong>${ttlMinutes} minutes</strong>.
+      </p>
+      <div style="text-align:center;margin:28px 0;">${digits}</div>
+      <p style="color:#999;font-size:13px;line-height:1.6;">
+        If you didn't request this, you can safely ignore this email — your
+        password will not change. Never share this code with anyone.
+      </p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
+      <p style="color:#ccc;font-size:12px;text-align:center;">
+        © ${new Date().getFullYear()} KitsuSpeak. All rights reserved.
+      </p>
+    </div>
+  `;
+
+  await sendMail({
+    toEmail: email,
+    toName: name,
+    subject: `${otp} is your KitsuSpeak password reset code`,
+    text: [
+      `Hi ${name},`,
+      '',
+      `Your KitsuSpeak password reset code is: ${otp}`,
+      '',
+      `This code expires in ${ttlMinutes} minutes.`,
+      "If you didn't request this, you can safely ignore this email.",
     ].join('\n'),
     html,
   });

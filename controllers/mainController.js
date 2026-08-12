@@ -4,6 +4,8 @@ const KanaProgress      = require('../models/KanaProgress');
 const KanjiProgress     = require('../models/KanjiProgress');
 const VocabularyProgress = require('../models/VocabularyProgress');
 const { asyncHandler }  = require('../middleware/error');
+const StreakActivity    = require('../models/StreakActivity');
+const { registerStudyActivity } = require('../utils/streak');
 
 const KANJI_MIN_SESSION = 14;
 const KANJI_MAX_SESSION = 25;
@@ -169,6 +171,7 @@ exports.updateKanjiProgress = asyncHandler(async (req, res) => {
   });
 
   await progress.save();
+  if (updated.length) await registerStudyActivity(req.user._id);
   res.json({ success: true, data: kanjiProgressToObject(progress), updated });
 });
 
@@ -342,6 +345,7 @@ exports.submitQuizAttempt = asyncHandler(async (req, res) => {
   // Reward XP
   const xpGain = score * 15;
   await User.findByIdAndUpdate(req.user._id, { $inc: { xp: xpGain } });
+  await registerStudyActivity(req.user._id);
 
   res.status(201).json({ success: true, data: attempt, xpGained: xpGain });
 });
@@ -358,11 +362,51 @@ exports.getUserStats = asyncHandler(async (req, res) => {
     data: {
       xp:           user.xp,
       streak:       user.streak,
+      lastStudied:  user.lastStudied,
       level:        user.currentLevel,
       totalCards,
       masteredCards,
       dueCount,
       recentQuizzes,
+    },
+  });
+});
+
+/* ════════════════════════════════════════════════════════════════
+   STREAK
+════════════════════════════════════════════════════════════════ */
+/* ── POST /api/progress/activity ──────────────────────────────────
+   Generic "the user completed something" hook. The four graded-content
+   endpoints (kana/kanji/vocab progress, quiz attempts, practice tests)
+   already call registerStudyActivity() server-side; this is for flows
+   with no dedicated backend mutation to hang it off — e.g. finishing a
+   grammar exercise, which today only updates localStorage. ─────────── */
+exports.registerActivity = asyncHandler(async (req, res) => {
+  const user = await registerStudyActivity(req.user._id);
+  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  res.json({ success: true, data: { streak: user.streak, lastStudied: user.lastStudied } });
+});
+
+/* ── GET /api/progress/streak?month=YYYY-MM ─────────────────────── */
+exports.getStreakCalendar = asyncHandler(async (req, res) => {
+  const month = /^\d{4}-\d{2}$/.test(req.query.month || '')
+    ? req.query.month
+    : new Date().toISOString().slice(0, 7);
+
+  const rows = await StreakActivity.find({
+    user: req.user._id,
+    date: { $gte: `${month}-01`, $lte: `${month}-31` },
+  }).select('date -_id').lean();
+
+  const user = await User.findById(req.user._id);
+
+  res.json({
+    success: true,
+    data: {
+      month,
+      streak: user?.streak ?? 0,
+      lastStudied: user?.lastStudied ?? null,
+      activeDates: rows.map(r => r.date),
     },
   });
 });

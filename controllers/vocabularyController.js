@@ -1,6 +1,7 @@
 const Vocabulary        = require('../models/Vocabulary');
 const VocabularyProgress = require('../models/VocabularyProgress');
 const { asyncHandler }  = require('../middleware/error');
+const { registerStudyActivity } = require('../utils/streak');
 
 const clamp = value => Math.max(0, Math.min(100, Number(value) || 0));
 const randomInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
@@ -81,6 +82,7 @@ exports.updateMastery = asyncHandler(async (req, res) => {
   const mastery = clamp(current + delta);
   progress.mastery.set(String(vocabularyId), mastery);
   await progress.save();
+  await registerStudyActivity(req.user._id);
   res.json({ success: true, data: serializeProgress(progress), updated: { vocabularyId, mastery, delta } });
 });
 

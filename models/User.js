@@ -55,9 +55,12 @@ const userSchema = new mongoose.Schema({
   streak:       { type: Number, default: 0 },
   lastStudied:  { type: Date,   default: null },
 
-  // Password reset
-  passwordResetToken:   { type: String, select: false },
-  passwordResetExpires: { type: Date,   select: false },
+  // Password reset — OTP stage, then a short-lived token for the actual reset
+  passwordResetOtp:      { type: String, select: false }, // sha256 of the OTP, never the digits
+  passwordResetOtpExpires: { type: Date, select: false },
+  passwordResetAttempts: { type: Number, select: false, default: 0 },
+  passwordResetToken:    { type: String, select: false },
+  passwordResetExpires:  { type: Date,   select: false },
 }, {
   timestamps: true, // adds createdAt, updatedAt
 });
@@ -86,18 +89,67 @@ userSchema.methods.createPasswordResetToken = function () {
   return resetToken; // send plain token to user via email
 };
 
-/* ── Update streak ───────────────────────────────────────────── */
-userSchema.methods.updateStreak = function () {
-  const now      = new Date();
-  const lastDate = this.lastStudied ? new Date(this.lastStudied) : null;
-  if (!lastDate) {
-    this.streak = 1;
-  } else {
-    const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
-    if (diffDays === 1) this.streak += 1;        // studied yesterday
-    else if (diffDays > 1) this.streak = 1;      // broke streak
-    // diffDays === 0 → same day, no change
+const OTP_TTL_MS      = 10 * 60 * 1000; // 10 minutes
+const OTP_MAX_ATTEMPTS = 5;
+
+const hashOtp = otp => crypto.createHash('sha256').update(String(otp)).digest('hex');
+
+/* ── Generate a 5-digit password-reset OTP ───────────────────────
+   Only the hash is persisted, same as the reset token — a leaked DB
+   dump shouldn't hand out working codes. randomInt (not Math.random)
+   because this is a credential. */
+userSchema.methods.createPasswordResetOtp = function () {
+  const otp = String(crypto.randomInt(10000, 100000)); // always 5 digits, no leading-zero edge case
+  this.passwordResetOtp        = hashOtp(otp);
+  this.passwordResetOtpExpires = Date.now() + OTP_TTL_MS;
+  this.passwordResetAttempts   = 0;
+  return otp;
+};
+
+/* Returns 'ok' | 'expired' | 'locked' | 'invalid'. Wrong guesses burn an
+   attempt so a 5-digit code can't be brute-forced (100k combinations). */
+userSchema.methods.verifyPasswordResetOtp = function (otp) {
+  if (!this.passwordResetOtp || !this.passwordResetOtpExpires) return 'expired';
+  if (this.passwordResetOtpExpires.getTime() < Date.now()) return 'expired';
+  if ((this.passwordResetAttempts || 0) >= OTP_MAX_ATTEMPTS) return 'locked';
+
+  const supplied = hashOtp(String(otp || '').trim());
+  const expected = this.passwordResetOtp;
+  const match = supplied.length === expected.length
+    && crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+
+  if (!match) {
+    this.passwordResetAttempts = (this.passwordResetAttempts || 0) + 1;
+    return 'invalid';
   }
+  return 'ok';
+};
+
+userSchema.methods.clearPasswordResetOtp = function () {
+  this.passwordResetOtp        = undefined;
+  this.passwordResetOtpExpires = undefined;
+  this.passwordResetAttempts   = 0;
+};
+
+userSchema.statics.OTP_MAX_ATTEMPTS = OTP_MAX_ATTEMPTS;
+
+/* ── Update streak ───────────────────────────────────────────────
+   Compares calendar dates (UTC 'YYYY-MM-DD'), not raw 24h windows — a
+   rolling-ms diff would wrongly treat "studied 23:59 yesterday, then
+   00:05 today" as the same day (diff < 24h) and miss the increment. */
+userSchema.methods.updateStreak = function () {
+  const dateKey = d => d.toISOString().slice(0, 10);
+  const now   = new Date();
+  const today = dateKey(now);
+  const last  = this.lastStudied ? dateKey(new Date(this.lastStudied)) : null;
+
+  if (!last) {
+    this.streak = 1;
+  } else if (last !== today) {
+    const yesterday = dateKey(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+    this.streak = last === yesterday ? this.streak + 1 : 1;
+  }
+  // last === today → already studied today, no change
   this.lastStudied = now;
 };
 
