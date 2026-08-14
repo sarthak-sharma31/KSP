@@ -6,7 +6,7 @@ const VocabularyProgress = require('../models/VocabularyProgress');
 const RoadmapProgress = require('../models/RoadmapProgress');
 const { asyncHandler } = require('../middleware/error');
 const KANA_GROUPS = require('../data/kanaGroups');
-const { LESSON_REQUIREMENTS, MASTERY_THRESHOLD, evaluate } = require('../utils/roadmap');
+const { LESSON_REQUIREMENTS, MASTERY_THRESHOLD, MASTERY_STEPS, evaluate } = require('../utils/roadmap');
 
 const mapToObject = m => Object.fromEntries(m || []);
 
@@ -72,10 +72,19 @@ exports.getRoadmap = asyncHandler(async (req, res) => {
       need: result.need,
       auto: result.auto,
       kind: req_.kind,
+      // 0..1 progress toward finishing this node. Mastery-based kinds report
+      // their average so the UI can move after every session; count-based
+      // kinds are already granular, so have/need is the honest ratio.
+      ratio: typeof result.ratio === 'number'
+        ? result.ratio
+        : (result.need > 0 ? Math.min(1, result.have / result.need) : 0),
     };
   }
 
-  res.json({ success: true, data: { threshold: MASTERY_THRESHOLD, lessons } });
+  res.json({
+    success: true,
+    data: { threshold: MASTERY_THRESHOLD, steps: MASTERY_STEPS, lessons },
+  });
 });
 
 /* ── POST /api/roadmap/complete ─────────────────────────────────────
