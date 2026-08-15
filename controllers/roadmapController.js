@@ -6,7 +6,10 @@ const VocabularyProgress = require('../models/VocabularyProgress');
 const RoadmapProgress = require('../models/RoadmapProgress');
 const { asyncHandler } = require('../middleware/error');
 const KANA_GROUPS = require('../data/kanaGroups');
-const { LESSON_REQUIREMENTS, MASTERY_THRESHOLD, MASTERY_STEPS, evaluate } = require('../utils/roadmap');
+const {
+  LESSON_REQUIREMENTS, MASTERY_THRESHOLD, MASTERY_STEPS,
+  stagesFor, isStaged, evaluate,
+} = require('../utils/roadmap');
 
 const mapToObject = m => Object.fromEntries(m || []);
 
@@ -55,6 +58,7 @@ async function buildContext(userId) {
     kanjiIdByChar,
     quizAttempts,
     manualSet: new Set(roadmap.manualDone),
+    stagesDone: lessonId => new Set(roadmap.stages?.get(lessonId) || []),
     kanaByGroup: (script, groups) => groups.flatMap(g => KANA_GROUPS[script]?.[g] || []),
   };
 }
@@ -65,19 +69,39 @@ exports.getRoadmap = asyncHandler(async (req, res) => {
 
   const lessons = {};
   for (const [lessonId, req_] of Object.entries(LESSON_REQUIREMENTS)) {
-    const result = evaluate(req_, { ...ctx, manualDone: ctx.manualSet.has(lessonId) });
+    const result = evaluate(req_, { ...ctx, manualDone: ctx.manualSet.has(lessonId) }, lessonId);
+
+    // 0..1 progress toward finishing this node. Mastery-based kinds report
+    // their average so the UI can move after every session; count-based
+    // kinds are already granular, so have/need is the honest ratio.
+    const ratio = typeof result.ratio === 'number'
+      ? result.ratio
+      : (result.need > 0 ? Math.min(1, result.have / result.need) : 0);
+
+    // The ring is drawn from steps/filled, so a staged lesson gets one
+    // segment per stage (visibly a quarter per exercise) while everything
+    // else keeps the fine-grained mastery scale.
+    const staged = Array.isArray(result.stages);
+    const steps = staged ? result.stages.length : MASTERY_STEPS;
+    const filled = staged
+      ? result.stages.filter(s => s.done).length
+      : Math.min(steps - 1, Math.floor(ratio * steps));
+
     lessons[lessonId] = {
       done: result.done,
       have: result.have,
       need: result.need,
       auto: result.auto,
       kind: req_.kind,
-      // 0..1 progress toward finishing this node. Mastery-based kinds report
-      // their average so the UI can move after every session; count-based
-      // kinds are already granular, so have/need is the honest ratio.
-      ratio: typeof result.ratio === 'number'
-        ? result.ratio
-        : (result.need > 0 ? Math.min(1, result.have / result.need) : 0),
+      ratio,
+      steps,
+      filled: result.done ? steps : filled,
+      ...(staged && {
+        stages: result.stages,
+        nextStage: result.stages.findIndex(s => !s.done),
+        mastered: result.mastered,
+        totalChars: result.totalChars,
+      }),
     };
   }
 
@@ -111,4 +135,44 @@ exports.completeLesson = asyncHandler(async (req, res) => {
   await roadmap.save();
 
   res.json({ success: true, data: { manualDone: roadmap.manualDone } });
+});
+
+/* ── POST /api/roadmap/stage ────────────────────────────────────────
+   Banks one stage of a staged lesson. The pass mark lives on the server
+   so the client can only report what it scored, not what counts. */
+exports.completeStage = asyncHandler(async (req, res) => {
+  const { lessonId, stage, scorePct = 0 } = req.body;
+
+  if (!isStaged(lessonId)) {
+    return res.status(400).json({ success: false, message: 'This lesson has no stages.' });
+  }
+
+  const plan = stagesFor(lessonId);
+  const index = Number(stage);
+  if (!Number.isInteger(index) || index < 0 || index >= plan.length) {
+    return res.status(400).json({ success: false, message: 'Unknown stage' });
+  }
+
+  const required = plan[index].pass;
+  const passed = Number(scorePct) >= required;
+
+  const roadmap = await getOrCreateRoadmap(req.user._id);
+  const banked = new Set(roadmap.stages?.get(lessonId) || []);
+
+  if (passed && !banked.has(index)) {
+    banked.add(index);
+    roadmap.stages.set(lessonId, [...banked].sort((a, b) => a - b));
+    await roadmap.save();
+  }
+
+  res.json({
+    success: true,
+    data: {
+      passed,
+      required,
+      stagesDone: [...banked].sort((a, b) => a - b),
+      total: plan.length,
+      lessonDone: banked.size >= plan.length,
+    },
+  });
 });

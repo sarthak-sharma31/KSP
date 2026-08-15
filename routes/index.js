@@ -39,6 +39,7 @@ const kanaCtrl  = require('../controllers/kanaController');
 const ctrl      = require('../controllers/mainController');
 const practiceTestCtrl = require('../controllers/practiceTestController');
 const roadmapCtrl = require('../controllers/roadmapController');
+const grammarCtrl = require('../controllers/grammarChapterController');
 
 /* ══════════════════════════════════════════════════════════════
    AUTH  /api/auth
@@ -88,7 +89,14 @@ kanjiRouter.get('/:id', ctrl.getOneKanji);
    GRAMMAR  /api/grammar
 ══════════════════════════════════════════════════════════════ */
 const grammarRouter = express.Router();
+/* Legacy flat grammar list — the old page still reads it. Left in place so
+   nothing already authored is lost; the chapter routes below are the ones
+   the app uses now. */
 grammarRouter.get('/', ctrl.getAllGrammar);
+
+grammarRouter.get ('/chapters',          protect, grammarCtrl.listChapters);
+grammarRouter.get ('/chapters/:number',  protect, grammarCtrl.getChapter);
+grammarRouter.post('/parts/complete',    protect, grammarCtrl.completePart);
 
 /* ══════════════════════════════════════════════════════════════
    QUIZ  /api/quiz
@@ -117,6 +125,7 @@ const roadmapRouter = express.Router();
 roadmapRouter.use(protect);
 roadmapRouter.get('/', roadmapCtrl.getRoadmap);
 roadmapRouter.post('/complete', roadmapCtrl.completeLesson);
+roadmapRouter.post('/stage',    roadmapCtrl.completeStage);
 
 /* ══════════════════════════════════════════════════════════════
    PROGRESS  /api/progress
@@ -173,6 +182,13 @@ adminRouter.get   ('/grammar',     ctrl.getAllGrammar);
 adminRouter.post  ('/grammar',     validateGrammar, ctrl.createGrammar);
 adminRouter.put   ('/grammar/:id', validateGrammar, ctrl.updateGrammar);
 adminRouter.delete('/grammar/:id',                  ctrl.removeGrammar);
+
+// Grammar chapters (Minna no Nihongo structure: chapter > part > sentence)
+adminRouter.get   ('/grammar-chapters',     grammarCtrl.adminList);
+adminRouter.get   ('/grammar-chapters/:id', grammarCtrl.adminGet);
+adminRouter.post  ('/grammar-chapters',     grammarCtrl.adminCreate);
+adminRouter.put   ('/grammar-chapters/:id', grammarCtrl.adminUpdate);
+adminRouter.delete('/grammar-chapters/:id', grammarCtrl.adminRemove);
 
 // Quiz
 adminRouter.get   ('/quiz',     ctrl.getAllQuiz);

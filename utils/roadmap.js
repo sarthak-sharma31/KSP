@@ -81,6 +81,62 @@ const LESSON_REQUIREMENTS = {
   'n5-final':    { kind: 'quiz', count: 5, minScorePct: 80 },
 };
 
+/* ══════════════════════════════════════════════════════════════
+   STAGES
+   A kana row is not "ten identical drills until every character
+   hits 60%" — that was slow, repetitive, and invisible: a perfect
+   session moved the ring by a tenth, so finishing one looked like
+   nothing had happened.
+
+   Instead a row is a short, ordered course. Each stage is one
+   exercise, and finishing it fills a visible quarter of the ring.
+   The order teaches rather than tests: you always *meet* the
+   characters on flashcards first, because a beginner cannot type
+   or multiple-choice a shape they have never seen.
+
+   The last stage of every row after the first is a mixed review
+   that also draws on earlier rows, so nothing you learned in
+   week one quietly rots while you work on week two.
+══════════════════════════════════════════════════════════════ */
+const STAGES = {
+  // pass: minimum score % to bank the stage. Flashcards are an
+  // introduction, not an exam — self-rating "still learning" on a
+  // character you met 30 seconds ago must not block progress.
+  flashcard: { key: 'flashcard', mode: 'flashcard', label: 'Meet the characters', sub: 'Flip through and learn the shapes', pass: 0 },
+  quiz:      { key: 'quiz',      mode: 'quiz',      label: 'Recognise them',      sub: 'Multiple choice',                   pass: 60 },
+  writing:   { key: 'writing',   mode: 'writing',   label: 'Recall them',         sub: 'Type the romaji from memory',       pass: 60 },
+  review:    { key: 'review',    mode: 'quiz',      label: 'Mixed review',        sub: 'This row plus everything before it', pass: 60, review: true },
+};
+
+/* Ordered so "everything before it" is well defined. */
+const KANA_LESSON_ORDER = {
+  hiragana: [
+    'hira-vowels', 'hira-k', 'hira-s', 'hira-t', 'hira-n', 'hira-h',
+    'hira-m', 'hira-r', 'hira-ywn', 'hira-dakuten', 'hira-handakuten',
+  ],
+  katakana: [
+    'kata-vowels', 'kata-k', 'kata-s', 'kata-t', 'kata-n', 'kata-h',
+    'kata-m', 'kata-r', 'kata-ywn', 'kata-dakuten', 'kata-handakuten',
+  ],
+};
+
+const LESSON_POSITION = {};
+for (const [script, ids] of Object.entries(KANA_LESSON_ORDER)) {
+  ids.forEach((id, index) => { LESSON_POSITION[id] = { script, index }; });
+}
+
+/* Three stages for the very first row of a script, four for the rest —
+   there is nothing to review before you have learned anything. */
+function stagesFor(lessonId) {
+  const pos = LESSON_POSITION[lessonId];
+  if (!pos) return [];
+  return pos.index === 0
+    ? [STAGES.flashcard, STAGES.quiz, STAGES.writing]
+    : [STAGES.flashcard, STAGES.quiz, STAGES.writing, STAGES.review];
+}
+
+const isStaged = lessonId => !!LESSON_POSITION[lessonId];
+
 const pct = (have, need) => (need <= 0 ? 100 : Math.min(100, Math.round((have / need) * 100)));
 
 /* Average mastery across a set of items, as a fraction of the threshold.
@@ -95,7 +151,7 @@ const ratioFromMastery = (values, threshold) => {
 
 /* Evaluate one requirement against pre-loaded snapshots.
    Returns { done, have, need, label }. */
-function evaluate(req, ctx) {
+function evaluate(req, ctx, lessonId) {
   if (!req || req.kind === 'manual') {
     return { done: !!ctx.manualDone, have: ctx.manualDone ? 1 : 0, need: 1, auto: false };
   }
@@ -104,11 +160,32 @@ function evaluate(req, ctx) {
     const chars = ctx.kanaByGroup(req.script, req.groups);
     const map = ctx.kanaMastery[req.script] || {};
     const values = chars.map(c => Number(map[c]) || 0);
-    const have = values.filter(v => v >= MASTERY_THRESHOLD).length;
-    const done = chars.length > 0 && have === chars.length;
+    // Character mastery is still tracked — it drives the chart and the
+    // adaptive picker — but a row is finished by working through its
+    // stages, not by grinding every character to 60%.
+    const mastered = values.filter(v => v >= MASTERY_THRESHOLD).length;
+
+    const plan = stagesFor(lessonId);
+    const bankedSet = ctx.stagesDone(lessonId);
+    const banked = plan.filter((_, i) => bankedSet.has(i)).length;
+
     return {
-      done, have, need: chars.length, auto: true,
-      ratio: done ? 1 : ratioFromMastery(values, MASTERY_THRESHOLD),
+      done: plan.length > 0 && banked >= plan.length,
+      have: banked,
+      need: plan.length,
+      auto: true,
+      ratio: plan.length ? banked / plan.length : 0,
+      mastered,
+      totalChars: chars.length,
+      stages: plan.map((stage, i) => ({
+        key: stage.key,
+        mode: stage.mode,
+        label: stage.label,
+        sub: stage.sub,
+        review: !!stage.review,
+        pass: stage.pass,
+        done: bankedSet.has(i),
+      })),
     };
   }
 
@@ -149,4 +226,8 @@ function evaluate(req, ctx) {
   return { done: false, have: 0, need: 1, auto: true };
 }
 
-module.exports = { LESSON_REQUIREMENTS, MASTERY_THRESHOLD, MASTERY_STEPS, evaluate, pct };
+module.exports = {
+  LESSON_REQUIREMENTS, MASTERY_THRESHOLD, MASTERY_STEPS,
+  KANA_LESSON_ORDER, stagesFor, isStaged,
+  evaluate, pct,
+};
