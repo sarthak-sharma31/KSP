@@ -25,10 +25,14 @@ app.use(cors({
 }));
 
 /* ── Rate limiting ───────────────────────────────────────────── */
-// Strict limit on auth routes
+/* Strict limit on auth routes. Signup is now three round trips rather than
+   one (send code → maybe resend → verify), and several people can share an
+   IP behind NAT or a mobile carrier, so 20 was low enough to lock out
+   honest users. Brute force is held off by the per-code attempt lock and
+   resend cooldown in PendingSignup, not by this number. */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max:      20,
+  max:      50,
   message:  { success: false, message: 'Too many attempts. Please try again in 15 minutes.' },
 });
 

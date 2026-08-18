@@ -215,3 +215,55 @@ exports.sendWelcomeEmail = async ({ email, name }) => {
     html,
   });
 };
+
+/* ── Send signup verification OTP ────────────────────────────────
+   Same digit treatment as the reset code so the two feel like one
+   system, but worded so a stranger who receives it (because someone
+   typed their address by mistake) knows to do nothing. */
+exports.sendSignupOtpEmail = async ({ email, name, otp, ttlMinutes = 15 }) => {
+  const digits = String(otp)
+    .split('')
+    .map(d => `<span style="display:inline-block;min-width:40px;padding:14px 0;margin:0 3px;
+                 background:#fff;border:1px solid #ffd9bd;border-radius:10px;
+                 font-size:26px;font-weight:800;color:#f97316;letter-spacing:2px;">${d}</span>`)
+    .join('');
+
+  const html = `
+    <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <span style="font-size:36px;">🦊</span>
+        <h2 style="color:#f97316;margin:8px 0 0;">KitsuSpeak</h2>
+      </div>
+      <h3 style="color:#1a1a2e;">Confirm your email</h3>
+      <p style="color:#555;line-height:1.6;">Hi <strong>${name}</strong>,</p>
+      <p style="color:#555;line-height:1.6;">
+        Enter this code to finish creating your KitsuSpeak account.
+        It expires in <strong>${ttlMinutes} minutes</strong>.
+      </p>
+      <div style="text-align:center;margin:28px 0;">${digits}</div>
+      <p style="color:#999;font-size:13px;line-height:1.6;">
+        Didn't sign up? Someone probably mistyped their address. No account
+        has been created and nothing will happen if you ignore this email.
+      </p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />
+      <p style="color:#ccc;font-size:12px;text-align:center;">
+        © ${new Date().getFullYear()} KitsuSpeak. All rights reserved.
+      </p>
+    </div>
+  `;
+
+  await sendMail({
+    toEmail: email,
+    toName: name,
+    subject: `${otp} is your KitsuSpeak verification code`,
+    text: [
+      `Hi ${name},`,
+      '',
+      `Your KitsuSpeak verification code is: ${otp}`,
+      '',
+      `This code expires in ${ttlMinutes} minutes.`,
+      "Didn't sign up? No account has been created — you can ignore this email.",
+    ].join('\n'),
+    html,
+  });
+};

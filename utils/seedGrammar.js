@@ -22,6 +22,10 @@ const GrammarChapter = require('../models/GrammarChapter');
 const t = (jp, romaji, gloss, role, note = '', silentInEnglish = false) =>
   ({ jp, romaji, gloss, role, note, silentInEnglish });
 
+/* One English tile with the Japanese word it comes from. `e('a')` is a
+   word with no counterpart — articles, mostly. */
+const e = (text, jp = '', romaji = '') => ({ text, jp, romaji });
+
 /* Reused function words — written once so their explanation is identical
    everywhere they appear. */
 const WA = () => t('は', 'wa', '(topic marker)', 'particle',
@@ -71,6 +75,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'これは ペンです',
           romaji: 'Kore wa pen desu',
           en: 'This is a pen',
+          enTokens: [e('This','これ','kore'), e('is','です','desu'), e('a'), e('pen','ペン','pen')],
           literal: 'this — (topic) — pen — is',
           note: 'The sentence every Japanese course starts with, and the whole pattern in four words.',
           tokens: [
@@ -84,6 +89,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'わたしは がくせいです',
           romaji: 'Watashi wa gakusei desu',
           en: 'I am a student',
+          enTokens: [e('I','わたし','watashi'), e('am','です','desu'), e('a'), e('student','がくせい','gakusei')],
           literal: 'I — (topic) — student — am',
           tokens: [
             t('わたし', 'watashi', 'I', 'pronoun', 'Neutral and polite. Japanese drops it whenever it is obvious who you mean.'),
@@ -96,6 +102,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'たなかさんは せんせいです',
           romaji: 'Tanaka-san wa sensei desu',
           en: 'Mr Tanaka is a teacher',
+          enTokens: [e('Mr','さん','san'), e('Tanaka','たなか','Tanaka'), e('is','です','desu'), e('a'), e('teacher','せんせい','sensei')],
           literal: 'Tanaka — Mr — (topic) — teacher — is',
           tokens: [
             t('たなか', 'Tanaka', 'Tanaka', 'name'),
@@ -109,6 +116,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'やまださんは いしゃです',
           romaji: 'Yamada-san wa isha desu',
           en: 'Ms Yamada is a doctor',
+          enTokens: [e('Ms','さん','san'), e('Yamada','やまだ','Yamada'), e('is','です','desu'), e('a'), e('doctor','いしゃ','isha')],
           literal: 'Yamada — Ms — (topic) — doctor — is',
           tokens: [
             t('やまだ', 'Yamada', 'Yamada', 'name'),
@@ -135,6 +143,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'わたしは せんせいじゃありません',
           romaji: 'Watashi wa sensei ja arimasen',
           en: 'I am not a teacher',
+          enTokens: [e('I','わたし','watashi'), e('am','じゃありません','ja arimasen'), e('not','じゃありません','ja arimasen'), e('a'), e('teacher','せんせい','sensei')],
           literal: 'I — (topic) — teacher — am not',
           tokens: [
             t('わたし', 'watashi', 'I', 'pronoun'),
@@ -147,6 +156,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'これは ほんじゃありません',
           romaji: 'Kore wa hon ja arimasen',
           en: 'This is not a book',
+          enTokens: [e('This','これ','kore'), e('is','じゃありません','ja arimasen'), e('not','じゃありません','ja arimasen'), e('a'), e('book','ほん','hon')],
           literal: 'this — (topic) — book — is not',
           tokens: [
             t('これ', 'kore', 'this', 'pronoun'),
@@ -159,6 +169,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'たなかさんは がくせいじゃありません',
           romaji: 'Tanaka-san wa gakusei ja arimasen',
           en: 'Mr Tanaka is not a student',
+          enTokens: [e('Mr','さん','san'), e('Tanaka','たなか','Tanaka'), e('is','じゃありません','ja arimasen'), e('not','じゃありません','ja arimasen'), e('a'), e('student','がくせい','gakusei')],
           literal: 'Tanaka — Mr — (topic) — student — is not',
           tokens: [
             t('たなか', 'Tanaka', 'Tanaka', 'name'),
@@ -185,6 +196,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'これは ほんですか',
           romaji: 'Kore wa hon desu ka',
           en: 'Is this a book?',
+          enTokens: [e('Is','です','desu'), e('this','これ','kore'), e('a'), e('book?','ほん','hon')],
           literal: 'this — (topic) — book — is — ?',
           tokens: [
             t('これ', 'kore', 'this', 'pronoun'),
@@ -198,6 +210,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'たなかさんは いしゃですか',
           romaji: 'Tanaka-san wa isha desu ka',
           en: 'Is Mr Tanaka a doctor?',
+          enTokens: [e('Is','です','desu'), e('Mr','さん','san'), e('Tanaka','たなか','Tanaka'), e('a'), e('doctor?','いしゃ','isha')],
           literal: 'Tanaka — Mr — (topic) — doctor — is — ?',
           tokens: [
             t('たなか', 'Tanaka', 'Tanaka', 'name'),
@@ -225,6 +238,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'わたしも がくせいです',
           romaji: 'Watashi mo gakusei desu',
           en: 'I am a student too',
+          enTokens: [e('I','わたし','watashi'), e('am','です','desu'), e('a'), e('student','がくせい','gakusei'), e('too','も','mo')],
           literal: 'I — too — student — am',
           tokens: [
             t('わたし', 'watashi', 'I', 'pronoun'),
@@ -237,6 +251,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'やまださんも せんせいです',
           romaji: 'Yamada-san mo sensei desu',
           en: 'Ms Yamada is a teacher too',
+          enTokens: [e('Ms','さん','san'), e('Yamada','やまだ','Yamada'), e('is','です','desu'), e('a'), e('teacher','せんせい','sensei'), e('too','も','mo')],
           literal: 'Yamada — Ms — too — teacher — is',
           tokens: [
             t('やまだ', 'Yamada', 'Yamada', 'name'),
@@ -263,6 +278,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'これは わたしの ほんです',
           romaji: 'Kore wa watashi no hon desu',
           en: 'This is my book',
+          enTokens: [e('This','これ','kore'), e('is','です','desu'), e('my','わたし','watashi'), e('book','ほん','hon')],
           literal: "this — (topic) — I — 's — book — is",
           tokens: [
             t('これ', 'kore', 'this', 'pronoun'),
@@ -277,6 +293,7 @@ One warning that trips up every beginner: the character は is normally read "ha
           jp: 'たなかさんは にほんごの せんせいです',
           romaji: 'Tanaka-san wa nihongo no sensei desu',
           en: 'Mr Tanaka is a Japanese teacher',
+          enTokens: [e('Mr','さん','san'), e('Tanaka','たなか','Tanaka'), e('is','です','desu'), e('a'), e('Japanese','にほんご','nihongo'), e('teacher','せんせい','sensei')],
           literal: 'Tanaka — Mr — (topic) — Japanese language — of — teacher — is',
           note: 'Here の marks a category rather than ownership: a teacher *of* Japanese.',
           tokens: [
@@ -324,6 +341,7 @@ There is a second set that behaves differently, and mixing them up is the most c
           jp: 'それは かばんです',
           romaji: 'Sore wa kaban desu',
           en: 'That is a bag',
+          enTokens: [e('That','それ','sore'), e('is','です','desu'), e('a'), e('bag','かばん','kaban')],
           literal: 'that (near you) — (topic) — bag — is',
           tokens: [
             t('それ', 'sore', 'that (near you)', 'pronoun', 'Near the listener, whatever the actual distance.'),
@@ -336,6 +354,7 @@ There is a second set that behaves differently, and mixing them up is the most c
           jp: 'あれは くるまです',
           romaji: 'Are wa kuruma desu',
           en: 'That over there is a car',
+          enTokens: [e('That','あれ','are'), e('over','あれ','are'), e('there','あれ','are'), e('is','です','desu'), e('a'), e('car','くるま','kuruma')],
           literal: 'that over there — (topic) — car — is',
           tokens: [
             t('あれ', 'are', 'that over there', 'pronoun', 'Away from both of you.'),
@@ -358,6 +377,7 @@ There is a second set that behaves differently, and mixing them up is the most c
           jp: 'この ほんは わたしのです',
           romaji: 'Kono hon wa watashi no desu',
           en: 'This book is mine',
+          enTokens: [e('This','この','kono'), e('book','ほん','hon'), e('is','です','desu'), e('mine','わたしの','watashi no')],
           literal: 'this — book — (topic) — I — \'s — is',
           note: 'の at the end stands in for the noun you would otherwise repeat: "mine" rather than "my book".',
           tokens: [
@@ -373,6 +393,7 @@ There is a second set that behaves differently, and mixing them up is the most c
           jp: 'あの ひとは やまださんです',
           romaji: 'Ano hito wa Yamada-san desu',
           en: 'That person is Ms Yamada',
+          enTokens: [e('That','あの','ano'), e('person','ひと','hito'), e('is','です','desu'), e('Ms','さん','san'), e('Yamada','やまだ','Yamada')],
           literal: 'that over there — person — (topic) — Yamada — Ms — is',
           tokens: [
             t('あの', 'ano', 'that ~ over there', 'prefix', 'Must be followed by a noun.'),
@@ -397,6 +418,7 @@ There is a second set that behaves differently, and mixing them up is the most c
           jp: 'はい、そうです',
           romaji: 'Hai, sou desu',
           en: "Yes, that's right",
+          enTokens: [e('Yes,','はい','hai'), e("that's",'そう','sou'), e('right','です','desu')],
           literal: 'yes — so — is',
           tokens: [
             t('はい', 'hai', 'yes', 'expression'),
@@ -408,6 +430,7 @@ There is a second set that behaves differently, and mixing them up is the most c
           jp: 'いいえ、ちがいます',
           romaji: 'Iie, chigaimasu',
           en: "No, that's wrong",
+          enTokens: [e('No,','いいえ','iie'), e("that's",'ちがいます','chigaimasu'), e('wrong','ちがいます','chigaimasu')],
           literal: 'no — differs',
           note: 'Literally "it differs" — softer than saying "no" twice.',
           tokens: [

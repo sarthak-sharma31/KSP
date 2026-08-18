@@ -68,6 +68,10 @@ const userSchema = new mongoose.Schema({
 /* ── Hash password before save ───────────────────────────────── */
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
+  /* Signup-by-OTP hashes the password when the attempt is parked in
+     PendingSignup, so the value arriving here is already a bcrypt hash.
+     Re-hashing it would produce a password nobody could ever log in with. */
+  if (this.$locals.passwordAlreadyHashed) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });

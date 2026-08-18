@@ -29,6 +29,7 @@ const {
   validateSignup, validateLogin, validateForgotPassword,
   validateResetPassword, validateVocab, validateKanji,
   validateGrammar, validateQuiz, validateAnnouncement, validatePreregistration,
+  validateVerifySignup, validateResendSignupOtp,
   validateGoogleAuth, validateVerifyResetOtp,
 } = require('../middleware/validators');
 const { validatePracticeTest, validateTestSubmission } = require('../middleware/practiceTestValidator');
@@ -40,12 +41,15 @@ const ctrl      = require('../controllers/mainController');
 const practiceTestCtrl = require('../controllers/practiceTestController');
 const roadmapCtrl = require('../controllers/roadmapController');
 const grammarCtrl = require('../controllers/grammarChapterController');
+const analyticsCtrl = require('../controllers/analyticsController');
 
 /* ══════════════════════════════════════════════════════════════
    AUTH  /api/auth
 ══════════════════════════════════════════════════════════════ */
 const authRouter = express.Router();
 authRouter.post('/signup',           validateSignup,         authCtrl.signup);
+authRouter.post('/verify-signup',    validateVerifySignup,   authCtrl.verifySignup);
+authRouter.post('/resend-signup-otp', validateResendSignupOtp, authCtrl.resendSignupOtp);
 authRouter.post('/login',            validateLogin,          authCtrl.login);
 authRouter.post('/google',           validateGoogleAuth,     authCtrl.googleAuth);
 authRouter.post('/admin/login',      validateLogin,          authCtrl.adminLogin);
@@ -158,6 +162,7 @@ adminRouter.use(protectAdmin);
 
 // Stats
 adminRouter.get('/stats', ctrl.getAdminStats);
+adminRouter.get('/analytics', analyticsCtrl.getAnalytics);
 
 // Vocabulary
 adminRouter.get   ('/vocabulary',     vocabCtrl.getAll);

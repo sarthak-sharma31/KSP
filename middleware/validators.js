@@ -21,6 +21,18 @@ exports.validateSignup = [
   validate,
 ];
 
+exports.validateVerifySignup = [
+  body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
+  body('otp').trim().isLength({ min: 6, max: 6 }).withMessage('Enter the 6-digit code')
+    .isNumeric().withMessage('The code is digits only'),
+  validate,
+];
+
+exports.validateResendSignupOtp = [
+  body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
+  validate,
+];
+
 exports.validateLogin = [
   body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
   body('password').notEmpty().withMessage('Password is required'),

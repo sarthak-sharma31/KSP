@@ -40,6 +40,24 @@ const tokenSchema = new mongoose.Schema({
   silentInEnglish: { type: Boolean, default: false },
 }, { _id: false });
 
+/* One tile of the English sentence, in ENGLISH order, each optionally
+   pointing back at the Japanese word it comes from.
+
+   It lives on the sentence rather than on the token because the two
+   languages disagree about order: です is last in Japanese but "is" is
+   third in English, and さん follows the name while "Mr" precedes it. A
+   per-token English field could never reassemble a natural sentence.
+
+   Words with no Japanese counterpart ("a", "the") simply leave jp blank.
+   Concatenating `text` in order must reproduce the sentence's `en`; when
+   it doesn't, the runner falls back to plain word-splitting with no
+   secondary text, so half-authored data degrades instead of breaking. */
+const enTokenSchema = new mongoose.Schema({
+  text:   { type: String, required: true, trim: true },   // "Mr"
+  jp:     { type: String, default: '', trim: true },      // さん
+  romaji: { type: String, default: '', trim: true },      // san
+}, { _id: false });
+
 const sentenceSchema = new mongoose.Schema({
   jp:      { type: String, required: true, trim: true },  // これはペンです
   romaji:  { type: String, default: '', trim: true },     // Kore wa pen desu
@@ -50,6 +68,8 @@ const sentenceSchema = new mongoose.Schema({
   literal: { type: String, default: '', trim: true },
   note:    { type: String, default: '', trim: true },
   tokens:  { type: [tokenSchema], default: [] },
+  /* English tiles with their Japanese counterparts — see enTokenSchema. */
+  enTokens: { type: [enTokenSchema], default: [] },
   /* Which derived drills this sentence takes part in. Every drill is
      generated from the tokens above, so authoring a sentence once is
      enough — there is no separate exercise to write and keep in sync. */
