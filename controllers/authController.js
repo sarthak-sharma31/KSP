@@ -392,6 +392,64 @@ exports.resetPassword = asyncHandler(async (req, res) => {
 });
 
 /* ── PATCH /api/auth/update-password ────────────────────────── */
+/* ── PATCH /api/auth/me ─────────────────────────────────────────
+   The only profile field a learner can change today. Email is the
+   account identity and is OTP-verified, so changing it would mean
+   re-running that whole flow — deliberately not offered here. */
+exports.updateProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user) return res.status(404).json({ success: false, message: 'Account not found' });
+
+  user.name = req.body.name.trim();
+  await user.save();
+
+  res.json({
+    success: true,
+    message: 'Profile updated.',
+    user: { _id: user._id, name: user.name, email: user.email, role: user.role },
+  });
+});
+
+/* ── DELETE /api/auth/me ────────────────────────────────────────
+   Irreversible, so it requires the password — a logged-in tab left
+   open should not be enough to destroy an account.
+
+   Everything keyed to the user goes with it. Anything missed here
+   would linger as an orphan row pointing at an id that no longer
+   resolves, which is both a privacy problem and a source of odd
+   totals in the admin analytics. */
+exports.deleteAccount = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('+password');
+  if (!user) return res.status(404).json({ success: false, message: 'Account not found' });
+
+  if (user.authProvider === 'local') {
+    if (!req.body.password) {
+      return res.status(400).json({ success: false, message: 'Enter your password to confirm.' });
+    }
+    if (!(await user.matchPassword(req.body.password))) {
+      return res.status(401).json({ success: false, message: 'That password is incorrect.' });
+    }
+  }
+
+  const userId = user._id;
+  await Promise.all([
+    require('../models/KanaProgress').deleteMany({ user: userId }),
+    require('../models/KanjiProgress').deleteMany({ user: userId }),
+    require('../models/VocabularyProgress').deleteMany({ user: userId }),
+    require('../models/GrammarProgress').deleteMany({ user: userId }),
+    require('../models/RoadmapProgress').deleteMany({ user: userId }),
+    require('../models/StreakActivity').deleteMany({ user: userId }),
+    require('../models/TestAttempt').deleteMany({ user: userId }),
+    require('../models/TestProgress').deleteMany({ user: userId }),
+    require('../models/index').QuizAttempt.deleteMany({ user: userId }),
+    require('../models/PendingSignup').deleteMany({ email: user.email }),
+  ]);
+
+  await User.deleteOne({ _id: userId });
+
+  res.json({ success: true, message: 'Your account and all of its data have been deleted.' });
+});
+
 exports.updatePassword = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select('+password');
 

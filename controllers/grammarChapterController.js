@@ -8,9 +8,17 @@ const { registerStudyActivity } = require('../utils/streak');
    kana recognition. */
 const PASS_PCT = 80;
 
-/* Mongoose rejects Map keys containing a dot, so the storage key is "1-2"
-   even though the part is displayed as "1.2". */
-const partKey = (chapterNumber, partIndex) => `${chapterNumber}-${partIndex}`;
+const LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'];
+
+/* Mongoose rejects Map keys containing a dot, so the stored key is "1-2"
+   even though the part is displayed as "1.2".
+
+   Chapter numbers restart at 1 for every level, so the key has to carry
+   the level too or N4 chapter 1 would inherit N5 chapter 1's progress.
+   N5 keeps the original unprefixed form so progress recorded before
+   levels existed is not orphaned. */
+const partKey = (chapterNumber, partIndex, level = 'N5') =>
+  (level === 'N5' ? `${chapterNumber}-${partIndex}` : `${level}-${chapterNumber}-${partIndex}`);
 
 const getOrCreateProgress = userId => GrammarProgress.findOneAndUpdate(
   { user: userId },
@@ -22,7 +30,7 @@ const getOrCreateProgress = userId => GrammarProgress.findOneAndUpdate(
    Chapter 1 is always open. */
 const summarise = (chapter, progress) => {
   const parts = chapter.parts.map(part => {
-    const result = progress?.parts?.get(partKey(chapter.number, part.index));
+    const result = progress?.parts?.get(partKey(chapter.number, part.index, chapter.level));
     return {
       _id: part._id,
       index: part.index,
@@ -47,8 +55,13 @@ const summarise = (chapter, progress) => {
 
 /* ── GET /api/grammar/chapters ──────────────────────────────────── */
 exports.listChapters = asyncHandler(async (req, res) => {
+  /* Scoped to the level the learner is studying. Chapter numbering and the
+     unlock chain run per level, so N4 starts at its own chapter 1 rather
+     than continuing N5's sequence. */
+  const level = LEVELS.includes(req.query.level) ? req.query.level : 'N5';
+
   const [chapters, progress] = await Promise.all([
-    GrammarChapter.find({ isPublished: true }).sort({ number: 1 }),
+    GrammarChapter.find({ isPublished: true, level }).sort({ number: 1 }),
     getOrCreateProgress(req.user._id),
   ]);
 
@@ -82,8 +95,10 @@ exports.getChapter = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid chapter number' });
   }
 
+  const level = LEVELS.includes(req.query.level) ? req.query.level : 'N5';
+
   const [chapter, progress] = await Promise.all([
-    GrammarChapter.findOne({ number, isPublished: true }),
+    GrammarChapter.findOne({ number, isPublished: true, level }),
     getOrCreateProgress(req.user._id),
   ]);
 
@@ -93,7 +108,7 @@ exports.getChapter = asyncHandler(async (req, res) => {
 
   // Locked purely by whether everything before it is finished, so a learner
   // cannot deep-link past the sequence.
-  const earlier = await GrammarChapter.find({ isPublished: true, number: { $lt: number } }).sort({ number: 1 });
+  const earlier = await GrammarChapter.find({ isPublished: true, level, number: { $lt: number } }).sort({ number: 1 });
   const locked = earlier.some(prev => !summarise(prev, progress).complete);
 
   const stats = summarise(chapter, progress);
@@ -142,7 +157,9 @@ exports.completePart = asyncHandler(async (req, res) => {
   const partIndex = Number(req.body.part);
   const scorePct = Math.max(0, Math.min(100, Number(req.body.scorePct) || 0));
 
-  const chapter = await GrammarChapter.findOne({ number: chapterNumber, isPublished: true });
+  const level = LEVELS.includes(req.body.level) ? req.body.level : 'N5';
+
+  const chapter = await GrammarChapter.findOne({ number: chapterNumber, isPublished: true, level });
   if (!chapter) {
     return res.status(404).json({ success: false, message: 'Chapter not found' });
   }
@@ -151,7 +168,7 @@ exports.completePart = asyncHandler(async (req, res) => {
   }
 
   const progress = await getOrCreateProgress(req.user._id);
-  const key = partKey(chapterNumber, partIndex);
+  const key = partKey(chapterNumber, partIndex, level);
   const previous = progress.parts.get(key) || { done: false, best: 0, attempts: 0 };
   const passed = scorePct >= PASS_PCT;
 

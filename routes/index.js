@@ -30,6 +30,7 @@ const {
   validateResetPassword, validateVocab, validateKanji,
   validateGrammar, validateQuiz, validateAnnouncement, validatePreregistration,
   validateVerifySignup, validateResendSignupOtp,
+  validateUpdateProfile, validateUpdatePassword,
   validateGoogleAuth, validateVerifyResetOtp,
 } = require('../middleware/validators');
 const { validatePracticeTest, validateTestSubmission } = require('../middleware/practiceTestValidator');
@@ -42,6 +43,8 @@ const practiceTestCtrl = require('../controllers/practiceTestController');
 const roadmapCtrl = require('../controllers/roadmapController');
 const grammarCtrl = require('../controllers/grammarChapterController');
 const analyticsCtrl = require('../controllers/analyticsController');
+const configCtrl = require('../controllers/configController');
+const maintenanceGate = require('../middleware/maintenance');
 
 /* ══════════════════════════════════════════════════════════════
    AUTH  /api/auth
@@ -57,7 +60,9 @@ authRouter.get ('/me',               protect,                authCtrl.getMe);
 authRouter.post('/forgot-password',  validateForgotPassword, authCtrl.forgotPassword);
 authRouter.post('/verify-reset-otp', validateVerifyResetOtp, authCtrl.verifyResetOtp);
 authRouter.patch('/reset-password/:token', validateResetPassword, authCtrl.resetPassword);
-authRouter.patch('/update-password', protect,                authCtrl.updatePassword);
+authRouter.patch('/update-password', protect, validateUpdatePassword, authCtrl.updatePassword);
+authRouter.patch('/me',              protect, validateUpdateProfile,  authCtrl.updateProfile);
+authRouter.delete('/me',             protect,                         authCtrl.deleteAccount);
 
 /* ══════════════════════════════════════════════════════════════
    VOCABULARY  /api/vocabulary
@@ -164,6 +169,10 @@ adminRouter.use(protectAdmin);
 adminRouter.get('/stats', ctrl.getAdminStats);
 adminRouter.get('/analytics', analyticsCtrl.getAnalytics);
 
+// Site configuration — live levels and page availability
+adminRouter.get('/config', configCtrl.adminGetConfig);
+adminRouter.put('/config', configCtrl.adminUpdateConfig);
+
 // Vocabulary
 adminRouter.get   ('/vocabulary',     vocabCtrl.getAll);
 adminRouter.post  ('/vocabulary',     validateVocab, vocabCtrl.create);
@@ -221,6 +230,12 @@ adminRouter.put   ('/announcements/:id', validateAnnouncement, ctrl.updateAnnoun
 adminRouter.delete('/announcements/:id',                       ctrl.removeAnnouncement);
 
 /* ── Mount all routers ───────────────────────────────────────── */
+/* Closed pages stop serving before their router is reached. Declared
+   ahead of the feature routers so nothing can slip past it. */
+router.use(maintenanceGate);
+
+router.get('/config', configCtrl.getConfig);
+
 router.use('/auth',          authRouter);
 router.use('/vocabulary',    vocabRouter);
 router.use('/kana',          kanaRouter);

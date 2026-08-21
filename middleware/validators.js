@@ -33,6 +33,21 @@ exports.validateResendSignupOtp = [
   validate,
 ];
 
+exports.validateUpdateProfile = [
+  body('name').trim().notEmpty().withMessage('Name is required')
+    .isLength({ max: 60 }).withMessage('Name cannot exceed 60 characters'),
+  validate,
+];
+
+/* The route had no validator at all, so a 1-character new password reached
+   the model and came back as a 500-shaped validation error rather than a
+   clean 400 the form could show against the field. */
+exports.validateUpdatePassword = [
+  body('currentPassword').notEmpty().withMessage('Enter your current password'),
+  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+  validate,
+];
+
 exports.validateLogin = [
   body('email').isEmail().withMessage('Valid email required').normalizeEmail(),
   body('password').notEmpty().withMessage('Password is required'),

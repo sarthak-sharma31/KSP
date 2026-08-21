@@ -93,7 +93,7 @@ const partSchema = new mongoose.Schema({
 }, { _id: true });
 
 const grammarChapterSchema = new mongoose.Schema({
-  number:  { type: Number, required: true, min: 1, max: 99, unique: true, index: true },
+  number:  { type: Number, required: true, min: 1, max: 99, index: true },
   level:   { type: String, enum: ['N5', 'N4', 'N3', 'N2', 'N1'], default: 'N5', index: true },
   title:   { type: String, required: true, trim: true },       // これは ペンです
   titleEn: { type: String, default: '', trim: true },          // This is a pen
@@ -108,6 +108,11 @@ const grammarChapterSchema = new mongoose.Schema({
   isPublished: { type: Boolean, default: false },
   createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
+
+/* Chapter numbers restart at 1 for each level, so uniqueness is per level.
+   A globally unique `number` made it impossible for N4 to have a chapter 1
+   while N5 already did. */
+grammarChapterSchema.index({ level: 1, number: 1 }, { unique: true });
 
 /* Keep parts and sentences in their authored order without the client
    having to sort, and renumber parts so deleting 1.2 doesn't leave a hole. */
